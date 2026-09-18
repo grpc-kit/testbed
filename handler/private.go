@@ -1,0 +1,98 @@
+package handler
+
+import (
+	"fmt"
+	"net/http"
+
+	"google.golang.org/grpc"
+
+	"github.com/grpc-kit/testbed/modeler"
+	"github.com/grpc-kit/testbed/modeler/mcp"
+)
+
+func (m *Microservice) privateExtended() ([]modeler.ClientIndependentOption, error) {
+	clientOpts := m.baseCfg.GetClientDialOption()
+	clientUnaryHandlers := m.baseCfg.GetClientUnaryInterceptor()
+	clientStreamHandlers := m.baseCfg.GetClientStreamInterceptor()
+
+	m.client.UseDialOption(clientOpts...).
+		UseUnaryInterceptor(clientUnaryHandlers...).
+		UseStreamInterceptor(clientStreamHandlers...)
+
+	m.server.UseServerOption(m.baseCfg.GetUnaryInterceptor(m.privateUnaryServerInterceptor()...),
+		m.baseCfg.GetStreamInterceptor(m.privateStreamServerInterceptor()...))
+
+	idpOpts := make([]modeler.ClientIndependentOption, 0)
+	idpOpts = append(idpOpts, modeler.WithLogger(m.logger))
+
+	driver, err := m.baseCfg.GetDatabaseEntSQLDriver()
+	if err == nil && driver != nil {
+		idpOpts = append(idpOpts, modeler.WithDatabaseEntDriver(driver))
+	}
+
+	if m.baseCfg.Automations.Enable {
+		fcc, err := m.baseCfg.GetFlowClientConfig()
+		if err != nil {
+			return idpOpts, err
+		}
+
+		idpOpts = append(idpOpts, modeler.WithWorkflow(m.logger, fcc))
+	}
+
+	return idpOpts, nil
+}
+
+func (m *Microservice) privateUnaryServerInterceptor() []grpc.UnaryServerInterceptor {
+	return nil
+}
+
+func (m *Microservice) privateStreamServerInterceptor() []grpc.StreamServerInterceptor {
+	return nil
+}
+
+func (m *Microservice) privateHTTPHandle(mux *http.ServeMux) error {
+	// 这里属于自定义 http 接口，访问 /favicon.ico 不会产生链路数据
+	// 如需捕获链路数据，参考文档：https://grpc-kit.com/docs/spec-cfg/observables/
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, "")
+	})
+
+	return nil
+}
+
+// privateMCPHandle 注册自定义原生 MCP 资源（Tools / Resources / Prompts）。
+// 在 HTTPHandlerFrontend（AutoBridge 已同步完成）之后、StartBackground 之前调用，
+// 确保 HTTP Server 启动时所有 MCP 资源（AutoBridge Tool + 自定义）均已就绪。
+// MCP 未启用时 wrapper 为 nil，直接跳过。
+func (m *Microservice) privateMCPHandle() error {
+	wrapper := m.baseCfg.MCPServerInstance()
+	if wrapper == nil {
+		return nil // MCP 未启用，跳过
+	}
+
+	// 按需收集依赖（与 privateExtended() 装配 IndependentCfg 的模式一致）
+	var opts []mcp.RegistrarOption
+
+	// 数据库（未配置时 GetEntClient 返回 error，静默跳过）
+	if db, err := m.thisCfg.GetEntClient(); err == nil && db != nil {
+		opts = append(opts, mcp.WithDatabase(db))
+	}
+
+	// 工作流（未配置时 GetFlowClient 返回 error，静默跳过）
+	if fc, err := m.thisCfg.GetFlowClient(); err == nil && fc != nil {
+		opts = append(opts, mcp.WithWorkflow(fc))
+	}
+
+	// 日志
+	opts = append(opts, mcp.WithLogger(m.logger))
+
+	// 业务开发者可在此追加自定义 Option，例如：
+	// opts = append(opts, mcp.WithRPCClient(m.client))
+
+	registrar := mcp.NewRegistrar(opts...)
+	if regErr := registrar.Register(wrapper.MCPServer()); regErr != nil {
+		return fmt.Errorf("register custom mcp resources: %w", regErr)
+	}
+
+	return nil
+}

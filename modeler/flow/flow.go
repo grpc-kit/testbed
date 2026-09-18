@@ -1,0 +1,78 @@
+package flow
+
+import (
+	"context"
+	"log/slog"
+
+	"github.com/grpc-kit/pkg/cfg"
+	"k8s.io/client-go/dynamic"
+)
+
+// Client xx
+type Client struct {
+	logger     *slog.Logger
+	config     *cfg.FlowClientConfig
+	dynamicset *dynamic.DynamicClient
+}
+
+// NewClient returns a new Workflow
+func NewClient(logger *slog.Logger, fcc *cfg.FlowClientConfig) (*Client, error) {
+	dynamicset, err := dynamic.NewForConfig(fcc.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{
+		logger:     logger,
+		config:     fcc,
+		dynamicset: dynamicset,
+	}, nil
+}
+
+// Create xx
+func (w *Client) Create(ctx context.Context) error {
+	/*
+		if err := w.sync(ctx,
+			example.NewExampleShell(w.config).Template(),
+			example.NewExamplePython(w.config).Template(),
+		); err != nil {
+			return err
+		}
+	*/
+
+	return nil
+}
+
+/*
+func (w *Client) sync(ctx context.Context, templates ...*wfv1.WorkflowTemplate) error {
+	for _, tmpl := range templates {
+		un := &unstructured.Unstructured{}
+
+		rawBody, err := json.Marshal(tmpl)
+		if err != nil {
+			return err
+		}
+
+		if err = un.UnmarshalJSON(rawBody); err != nil {
+			return err
+		}
+
+		gvk := un.GroupVersionKind()
+		res := schema.GroupVersionResource{
+			Group:    gvk.Group,
+			Version:  gvk.Version,
+			Resource: fmt.Sprintf("%v%v", strings.ToLower(gvk.Kind), "s"),
+		}
+
+		_, err = w.dynamicset.
+			Resource(res).
+			Namespace(un.GetNamespace()).
+			Apply(ctx, un.GetName(), un, metav1.ApplyOptions{Force: true, FieldManager: w.config.Appname})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+*/

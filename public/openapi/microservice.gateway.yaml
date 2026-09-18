@@ -1,0 +1,47 @@
+type: google.api.Service
+config_version: 3
+
+http:
+  rules:
+  # 内置服务
+  ## 健康检查
+  - selector: default.api.known.testbed.v1.KnownTestbed.HealthCheck
+    get: "/api/healthz"
+
+  # 参考示例，书籍管理，实现相同一组任务的方法整合在一起，前后均需空行隔开
+  ## 获取书籍详情
+  #- selector: default.api.known.testbed.v1.KnownTestbed.GetBook
+  #  get: "/api/publishers/{publisher_id}/books/{book_id}"
+  ## 获取书籍列表
+  #- selector: default.api.known.testbed.v1.KnownTestbed.ListBooks
+  #  get: "/api/publishers/{publisher_id}/books"
+  ## 创建书籍实体
+  #- selector: default.api.known.testbed.v1.KnownTestbed.CreateBook
+  #  post: "/api/publishers/{publisher_id}/books"
+  #  body: "book"
+  ## 更新书籍实体
+  #- selector: default.api.known.testbed.v1.KnownTestbed.UpdateBook
+  #  patch: "/api/publishers/{publisher_id}/books/{book_id}"
+  #  body: "book"
+  ## 删除书籍实体
+  #- selector: default.api.known.testbed.v1.KnownTestbed.DeleteBook
+  #  delete: "/api/publishers/{publisher_id}/books/{book_id}"
+  ## 归档书籍实体
+  #- selector: default.api.known.testbed.v1.KnownTestbed.ArchiveBook
+  #  post: "/api/publishers/{publisher_id}/books/{book_id}:archive"
+  #  body: "*"
+
+  # 示例实现
+  - selector: default.api.known.testbed.v1.KnownTestbed.Demo
+    post: "/api/demo"
+    body: "*"
+    response_body: "pong"
+    additional_bindings:
+      - get: "/api/demo"
+      - get: "/api/demo/{uuid}"
+        response_body: "pong.pong"
+      - put: "/api/demo/{uuid}"
+        body: "ping"
+        response_body: "ping"
+      - delete: "/api/demo/{uuid}"
+        response_body: "empty"

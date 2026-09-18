@@ -1,0 +1,59 @@
+package modeler
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+
+	"github.com/grpc-kit/testbed/modeler/ent"
+	"github.com/grpc-kit/testbed/modeler/flow"
+)
+
+// IndependentCfg 个性配置
+type IndependentCfg struct {
+	logger *slog.Logger
+	db     *ent.Client
+	flow   *flow.Client
+
+	Name string `mapstructure:"name"`
+}
+
+// Init 用于初始化实例
+func (i *IndependentCfg) Init(ctx context.Context, opts ...ClientIndependentOption) error {
+	for _, opt := range opts {
+		opt(i)
+	}
+
+	if i.db != nil {
+		if err := i.db.Schema.Create(ctx); err != nil {
+			return err
+		}
+	}
+	if i.flow != nil {
+		if err := i.flow.Create(ctx); err != nil {
+			return err
+		}
+	}
+
+	// TODO; 其他业务代码
+
+	return nil
+}
+
+// GetEntClient 获取 ent 数据库实例
+func (i *IndependentCfg) GetEntClient() (*ent.Client, error) {
+	if i.db == nil {
+		return nil, fmt.Errorf("ent client is nil")
+	}
+
+	return i.db, nil
+}
+
+// GetFlowClient 获取 workflow 实例
+func (i *IndependentCfg) GetFlowClient() (*flow.Client, error) {
+	if i.flow == nil {
+		return nil, fmt.Errorf("workflow client is nil")
+	}
+
+	return i.flow, nil
+}
